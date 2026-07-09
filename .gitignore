@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+.DS_Store
+*.log
+# 配置文件（含 API 密钥）
+config/.bit_key
+/tmp/lx_password.txt
+/tmp/deepseek_key.txt

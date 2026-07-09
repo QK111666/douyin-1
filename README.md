@@ -1,178 +1,92 @@
-# 抖音1号 - LLCC ErrorCode 系统
+# 一一助手 — 抖音多账号直播间自动评论工具
 
-## 项目简介
+> **桌面软件 | Electron + Node.js + 比特浏览器**
+> 路径：`/Users/mac/Desktop/LLcc`
 
-**抖音1号**是一个抖音直播间自动化互动系统，核心功能包括：
-- 多账号管理
-- 自动进入直播间
-- 自动发送评论
-- 智能错误处理
+## 功能清单
 
-本仓库主要记录**ErrorCode 系统**的完整实现，这是一套结构化的错误码机制，让后端API返回标准化的错误信息，前端能精确处理每一种错误情况。
+| 功能 | 说明 |
+|------|------|
+| 多账号管理 | 10个账号（zh1-zh10），搜索/过滤/批量操作 |
+| 直播间锁定 | 输入ID → 进场 → 自动弹确认启动 |
+| 发送评论 | 手动单条 / 全部发送 / 全局定时循环 |
+| 定时器 | 单账号定时（1s~60s），实际为随机范围 |
+| 全局暂停 | 一键暂停所有定时器，恢复后继续 |
+| 词集系统 | 创建话术集 → 添加词条 → AI生成 → 批量导入 |
+| 分组系统 | 创建分组 → 添加词集 → 一键分配到账号（不重复/可重复） |
+| 真随机词条 | 记录历史避免重复，全部用完自动重置 |
+| 直播间历史 | 自动记录进过的房间ID，点击填入 |
+| 错误处理 | ErrorCode系统前后端对接，自动重试 |
+| 浏览器检测 | 30分钟自动检测 + 手动刷新 |
+| 日志 | 每账号独立日志 + 全局日志 |
+| 桌面应用 | Electron 独立窗口，1280×800 |
 
-## 快速开始
+## 项目结构
 
-### 安装依赖
-```bash
-cd LLCC
-npm install
+```
+LLcc/
+├── public/                  ← 前端
+│   ├── index.html           ← 主页面（两栏布局）
+│   ├── login.html           ← 登录页
+│   ├── css/style.css        ← 样式
+│   └── js/app.js            ← 前端逻辑（1402行）
+├── server/                  ← 后端
+│   ├── server.mjs           ← HTTP API（端口3456，含静态文件服务）
+│   ├── browser-pool.js      ← 浏览器持久CDP连接池
+│   ├── check-login.mjs      ← 登录检测
+│   └── config.js            ← 配置（PROFILES等）
+├── electron/main.js         ← Electron桌面入口
+├── config/.bit_key          ← 比特浏览器API密钥
+├── start.sh                 ← 网页模式启动脚本
+├── package.json             ← npm run electron
+└── README.md
 ```
 
-### 启动服务
+## 启动方式
+
+**桌面应用模式（推荐）：**
 ```bash
+cd /Users/mac/Desktop/LLcc
+npm run electron
+```
+
+**网页服务器模式：**
+```bash
+cd /Users/mac/Desktop/LLcc
 bash start.sh
+# 浏览器打开 http://localhost:3456/
+# 登录：admin / admin
 ```
 
-服务启动在 `http://localhost:3456`
+## 数据存储
 
-### 访问前端
-打开浏览器访问 `http://localhost:3456`，输入用户名和密码登录。
+所有数据存浏览器 localStorage：
 
-## ErrorCode 系统核心
+| Key | 内容 |
+|-----|------|
+| `douyin_scripts` | 词集数据 |
+| `selected_script_map` | 账号→词集映射 |
+| `script_groups` | 分组数据 |
+| `lxbtb_live_history` | 直播间历史 |
+| `nb_login` | 登录态 |
+| `script_tab` | 话术页tab记忆 |
 
-### 问题背景
+## 依赖
 
-之前的错误处理方式：
-```javascript
-// ❌ 不靠谱的做法
-if (result.output.includes('offline')) {
-  // 可能是浏览器离线，也可能只是output里恰好有'offline'这个词
-}
-```
+- **比特浏览器**（localhost:54345）— 浏览器实例管理
+- **Playwright** — CDP连接控制页面
+- **DeepSeek API** — AI生成话术（可选，需配置密钥）
+- **Electron** — 桌面应用壳
 
-新的ErrorCode系统：
-```javascript
-// ✅ 精确的做法
-switch(response.errorCode) {
-  case 'BROWSER_OFFLINE':
-    // 确定是浏览器离线
-    break;
-  case 'SEND_RATE_LIMITED':
-    // 确定是频率限制，用指数退避重试
-    break;
-}
-```
+## 最近更新
 
-### 数据流
-
-```
-前端 POST /api/first
-    ↓
-handleFirst() 调用 ads-tool.mjs
-    ↓
-ads-tool.mjs 执行脚本，失败时输出：
-{"success": false, "errorCode": "BROWSER_OFFLINE", "error": "..."}
-    ↓
-handleFirst() 解析JSON，提取errorCode
-    ↓
-前端收到标准化响应：
-{
-  "success": false,
-  "errorCode": "BROWSER_OFFLINE",
-  "error": "浏览器已离线",
-  "data": null
-}
-```
-
-### ErrorCode 类型
-
-| 错误码 | HTTP状态 | 含义 | 前端处理 |
-|--------|--------|------|--------|
-| INVALID_PARAMS | 400 | 缺少参数 | 显示参数错误 |
-| BROWSER_START_FAILED | 500 | 浏览器启动失败 | ERROR状态 |
-| BROWSER_TIMEOUT | 500 | 浏览器超时 | ERROR状态+建议重启 |
-| BROWSER_OFFLINE | 400 | 浏览器离线 | OFFLINE状态 |
-| NOT_LOGGED_IN | 401 | 账号未登录 | OFFLINE状态 |
-| NOT_IN_LIVE_ROOM | 400 | 不在直播间 | OFFLINE状态 |
-| SEND_RATE_LIMITED | 429 | 频率限制 | 指数退避重试 |
-| SEND_FAILED | 500 | 发送失败 | 简单重试 |
-| NETWORK_ERROR | 500 | 网络错误 | 提示异常 |
-| UNKNOWN_ERROR | 500 | 未知错误 | 显示原始信息 |
-
-## API 文档
-
-### POST /api/first - 启动浏览器
-
-**请求**：
-```bash
-curl http://localhost:3456/api/first -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"liveId":"629979087422","account":"zh1"}'
-```
-
-**参数**：
-- `liveId` (string, required): 直播间ID
-- `account` (string, required): 账号名称（zh1-zh10）
-
-**成功响应** (200):
-```json
-{
-  "success": true,
-  "error": null,
-  "errorCode": null,
-  "data": {"message": "启动成功"}
-}
-```
-
-**错误响应** (400/500):
-```json
-{
-  "success": false,
-  "errorCode": "BROWSER_OFFLINE",
-  "error": "浏览器已离线",
-  "data": null
-}
-```
-
-### POST /api/send - 发送评论
-
-**请求**：
-```bash
-curl http://localhost:3456/api/send -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"msg":"你好","account":"zh1"}'
-```
-
-**参数**：
-- `msg` (string, optional): 评论内容，默认"你好"
-- `account` (string, required): 账号名称
-
-**响应格式**同 /api/first
-
-## 关键改动
-
-1. **response.js** - 添加errorCode参数到sendError()
-2. **ads-tool.mjs** - 输出JSON格式errorCode而不是console.log
-3. **routes/first.js** - 新增，解析errorCode并返回
-4. **routes/send.js** - 新增，解析errorCode并返回  
-5. **server.mjs** - 导入新路由函数
-
-详见 [ERRORCODE-SYSTEM-GUIDE.md](./ERRORCODE-SYSTEM-GUIDE.md)
-
-## 前端集成
-
-需要更新 `handleSendError()` 用switch(errorCode)处理每种错误类型。
-
-## 测试
-
-```bash
-# 缺参数测试
-curl http://localhost:3456/api/first -X POST -H "Content-Type: application/json" -d '{}'
-
-# 完整启动测试
-curl http://localhost:3456/api/first -X POST -H "Content-Type: application/json" -d '{"liveId":"629979087422","account":"zh1"}'
-
-# 发送测试
-curl http://localhost:3456/api/send -X POST -H "Content-Type: application/json" -d '{"msg":"你好","account":"zh1"}'
-```
-
-## 待完成
-
-- [ ] 前端集成errorCode处理
-- [ ] account-manager.js更新
-- [ ] 完整端到端测试
-- [ ] 生产部署
-
----
-
-**最后更新**：2026-07-06 | **版本**：v1.0
+**v2.0 — 2026-07-06**
+- 两栏布局（左账号列表 + 右详情面板）
+- 过滤标签 + 批量操作 + 全选
+- 分组系统（创建分组 → 一键分配词集）
+- 全局定时 + 全局暂停（真正停掉所有定时器）
+- 进场后自动提示启动
+- 真随机词条（不重复）
+- 浏览器30分钟自动检测
+- Electron 桌面应用
+- 代码清理（从60+文件精简到22文件）

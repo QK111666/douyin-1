@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一一助手</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ====== 桌面窗口模拟 ====== -->
+<div class="window">
+  <div class="titlebar">
+    <div class="titlebar-dots">
+      <div class="titlebar-dot"></div>
+      <div class="titlebar-dot"></div>
+      <div class="titlebar-dot"></div>
+    </div>
+    <div class="titlebar-title">一一助手</div>
+  </div>
+
+  <div class="body">
+
+    <!-- ====== 侧边栏 ====== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">一</div>
+      <div class="sidebar-icon active" data-page="0" onclick="switchPage(0)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        <span class="sidebar-icon-tip">直播间</span>
+      </div>
+      <div class="sidebar-icon" data-page="2" onclick="switchPage(2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span class="sidebar-icon-tip">话术合集</span>
+      </div>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-icon" data-page="3" onclick="switchPage(3)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="sidebar-icon-tip">设置</span>
+      </div>
+      <div class="sidebar-bottom">Z</div>
+    </aside>
+
+    <!-- ====== 页面 0：直播间 ====== -->
+    <div class="page active" id="page-0">
+
+      <!-- 左侧账号列表 -->
+      <div class="left-panel">
+        <div class="panel-header">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="selectAllCheckbox" class="row-checkbox" style="width:12px;height:12px;" />
+            <span class="panel-title">账号</span>
+          </label>
+          <span class="panel-count" id="accountCount">10 个</span>
+        </div>
+        <div class="panel-search">
+          <input class="search-input" id="accountSearch" placeholder="搜索账号..." />
+        </div>
+        <div class="filter-bar" id="filterBar">
+          <span class="filter-tag active" data-filter="all">全部</span>
+          <span class="filter-tag" data-filter="online">在线</span>
+          <span class="filter-tag" data-filter="offline">离线</span>
+          <span class="filter-tag" data-filter="error">报错</span>
+        </div>
+        <div class="scroll-list" id="accountList"></div>
+        <div class="batch-bar" id="batchBar">
+          <span class="batch-count" id="batchCount">已选 0 个</span>
+          <div class="batch-actions">
+            <button class="batch-btn" id="batchStart">启动</button>
+            <button class="batch-btn" id="batchStop">暂停</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧主内容 -->
+      <div class="main-content">
+        <!-- 顶部操作栏 -->
+        <div class="main-top">
+          <span class="live-tag"><span class="live-tag-dot"></span> 直播中</span>
+          <input class="live-input-compact" id="liveInput" placeholder="输入直播间 ID..." />
+          <button class="btn-enter" id="btnOneShot" style="background:linear-gradient(135deg,#fe2c55,#c026d3);border:none;padding:6px 16px;font-size:10px;font-weight:700;">
+            📍 确定直播间
+          </button>
+          <button class="btn btn-primary btn-sm" id="btnEnter" style="display:none;">进场</button>
+          <button class="btn btn-primary btn-sm" id="btnQuickStartRoom" style="display:none;">启动</button>
+          <span id="lockedBadge" style="display:none;align-items:center;gap:4px;font-size:10px;background:rgba(254,44,85,0.06);color:#fe2c55;padding:4px 10px;border-radius:5px;border:1px solid rgba(254,44,85,0.08);">
+            📍 <span id="lockedId"></span>
+            <button id="btnUnlock" style="background:none;border:none;color:rgba(161,161,170,0.3);cursor:pointer;font-size:10px;font-family:inherit;">✕</button>
+          </span>
+          <div class="login-status logged-out" id="loginStatus" style="display:none;">
+            <span class="login-status-dot"></span>
+            <span id="loginStatusText">未登录</span>
+          </div>
+          <div id="liveHistory" style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+            <span id="historyTags"></span>
+          </div>
+          <div style="flex:1"></div>
+          <button class="btn btn-ghost" id="btnClearLog">清屏</button>
+        </div>
+
+        <!-- 加载指示器 -->
+        <div id="progressBar" style="display:none;height:2px;background:rgba(254,44,85,0.1);flex-shrink:0;overflow:hidden;">
+          <div id="progressInner" style="height:100%;width:0%;background:linear-gradient(90deg,#fe2c55,#9333ea);border-radius:1px;transition:width 0.3s;"></div>
+        </div>
+        <div id="progressText" style="display:none;padding:2px 20px;font-size:10px;color:rgba(254,44,85,0.3);flex-shrink:0;font-family:'JetBrains Mono',monospace;"></div>
+
+        <!-- 数据看板 -->
+        <div id="statsBar" style="display:none;flex-shrink:0;display:flex;gap:16px;padding:8px 20px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:10px;">
+          <span style="color:rgba(255,255,255,0.15);">📊</span>
+          <span>在线 <b style="color:#22c55e;" id="statOnline">0</b></span>
+          <span>今日发送 <b style="color:rgba(255,255,255,0.4);" id="statSent">0</b></span>
+          <span>成功率 <b style="color:#3b82f6;" id="statRate">0%</b></span>
+          <span>报错 <b style="color:#ef4444;" id="statErrors">0</b></span>
+        </div>
+
+        <!-- 新手引导 -->
+        <div id="emptyGuide" style="display:none;flex-shrink:0;padding:10px 20px;background:rgba(254,44,85,0.02);border:1px solid rgba(254,44,85,0.06);border-radius:8px;margin:0 20px;gap:8px;flex-direction:column;">
+          <div style="font-size:11px;color:rgba(254,44,85,0.3);font-weight:600;">🚀 快速开始</div>
+          <div style="font-size:10px;color:rgba(161,161,170,0.3);line-height:1.8;">
+            1. 左侧选择一个账号<br />
+            2. 输入直播间 ID，点击「进场」<br />
+            3. 浏览器打开后扫码登录抖音<br />
+            4. 返回本页点「启动」开始自动发送
+          </div>
+        </div>
+
+        <!-- 详情区 -->
+        <div class="detail-area">
+          <div class="detail-area-top">
+            <!-- 选中账号信息 -->
+            <div class="detail-header">
+              <div class="detail-avatar" id="detailAvatar" style="background:linear-gradient(135deg,#fe2c55,#c22243);">Z1</div>
+              <div class="detail-info">
+                <div class="detail-name" id="detailName">zh1</div>
+                <div class="detail-status" id="detailStatus">● 在线</div>
+              </div>
+              <div style="flex:1"></div>
+              <button class="btn btn-ghost btn-sm" id="detailEyeBtn" title="显示/隐藏浏览器窗口" style="font-size:14px;padding:4px 8px;">👁‍🗨</button>
+              <button class="btn btn-primary btn-sm" id="detailStartBtn">启动直播间</button>
+              <button class="btn btn-secondary btn-sm" id="detailRefreshBtn">刷新</button>
+            </div>
+
+            <!-- 发送行 -->
+            <div class="send-row">
+              <input class="send-input" id="detailMsgInput" placeholder="输入评论内容..." />
+              <select class="send-input" id="detailScriptInput" style="display:none;" onchange="selectScript(this.value)"><option value="">💬 选择词集...</option></select>
+              <button class="btn btn-ghost btn-sm" id="detailSendModeBtn" title="切换发送模式" style="font-size:15px;padding:6px 8px;flex-shrink:0;line-height:1;">🔄</button>
+              <button class="send-btn" id="detailSendBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              </button>
+            </div>
+
+            <!-- 设置行 -->
+            <div class="settings-row">
+              <span class="setting-tag">⏰ 定时：
+                <select id="detailTimerSelect" style="background:none;border:none;color:inherit;font-family:inherit;font-size:10px;outline:none;cursor:pointer;">
+                  <option value="0">关</option>
+                  <option value="1">1-3s</option>
+                  <option value="3" selected>3-8s</option>
+                  <option value="5">5-10s</option>
+                  <option value="8">8-13s</option>
+                  <option value="10">10-18s</option>
+                  <option value="15">15-28s</option>
+                  <option value="30">30-45s</option>
+                  <option value="60">55-70s</option>
+                  <option value="70">70-80s</option>
+                </select>
+              </span>
+              <span class="setting-tag" id="detailModeTag">🎲 模式：随机</span>
+              <span class="setting-tag" id="detailPauseBtn">⏸ 暂停</span>
+              <span class="setting-stats" id="detailSendCount">已发送 0 条</span>
+            </div>
+          </div>
+
+          <!-- ====== 账号专属日志 ====== -->
+          <div class="log-section">
+            <div class="log-section-header">
+              <span class="log-section-title" id="detailLogTitle">发送记录</span>
+              <div class="log-section-right">
+                <span class="log-section-count" id="detailLogCount">共 0 条</span>
+              </div>
+            </div>
+            <div class="log-list" id="detailLogList"></div>
+          </div>
+
+          <!-- ====== 全局日志 ====== -->
+          <div class="log-section global">
+            <div class="log-section-header">
+              <span class="log-section-title">全局日志</span>
+              <div class="log-section-right">
+                <span class="log-section-count" id="globalLogCount">共 0 条</span>
+                <button class="log-section-clear" id="globalLogClear">清空</button>
+              </div>
+            </div>
+            <div class="log-list" id="globalLogList"></div>
+          </div>
+        </div>
+
+        <!-- 底部全局控制栏 -->
+        <div class="bottom-bar">
+          <div class="bottom-group">
+            <span class="bottom-label">发送</span>
+            <input class="bottom-input" id="globalMsg" placeholder="留空则各账号用自己的词集" />
+            <button class="btn btn-primary btn-sm" id="btnSendAll">发送全部</button>
+          </div>
+          <div class="sep"></div>
+          <div class="bottom-group">
+            <span class="bottom-label">定时</span>
+            <button class="btn btn-sm" id="globalTimerToggle" style="background:rgba(34,34,46,0.1);color:rgba(161,161,170,0.3);border:1px solid rgba(34,34,46,0.1);">⏰ 全局定时：<span id="globalTimerStatus">关</span></button>
+          </div>
+          <div class="sep"></div>
+          <div class="bottom-group">
+            <span class="bottom-label">控制</span>
+            <button class="btn btn-primary btn-sm" id="btnStartAll">全部启动</button>
+            <button class="btn btn-secondary btn-sm" id="btnStartCustom">自定义</button>
+            <button class="btn btn-sm" id="btnStartAllTimers" style="background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.15);">▶ 全部开刷</button>
+            <button class="btn btn-secondary btn-sm" id="btnPauseAll">⏸ 暂停</button>
+            <button class="btn btn-ghost btn-sm" style="color:rgba(239,68,68,0.5);border:1px solid rgba(239,68,68,0.1);" id="btnCloseAll">全部关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== 页面 2：话术合集 ====== -->
+    <div class="page" id="page-2">
+      <div class="left-panel">
+        <!-- Tab 切换 -->
+        <div class="filter-bar" id="scriptTabBar">
+          <span class="filter-tag active" data-stab="scripts">词集</span>
+          <span class="filter-tag" data-stab="groups">分组</span>
+        </div>
+
+        <!-- 词集视图 -->
+        <div id="scriptsListView">
+          <div style="display:flex;gap:4px;padding:6px 12px 8px;">
+            <input id="newScriptName" class="search-input" placeholder="新词集名称..." style="flex:1;" />
+            <button class="btn btn-primary btn-sm" id="btnNewScript" style="white-space:nowrap;">+ 新建</button>
+          </div>
+          <div class="panel-search">
+            <input class="search-input" id="scriptSearch" placeholder="搜索话术集..." />
+          </div>
+          <div class="scroll-list" id="scriptsList"></div>
+        </div>
+
+        <!-- 分组视图 -->
+        <div id="groupsListView" style="display:none;">
+          <div style="display:flex;gap:4px;padding:6px 12px 8px;">
+            <input id="newGroupName" class="search-input" placeholder="新分组名称..." style="flex:1;" />
+            <button class="btn btn-primary btn-sm" id="btnNewGroup" style="white-space:nowrap;">+ 新建</button>
+          </div>
+          <div class="scroll-list" id="groupsList"></div>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <div class="main-top">
+          <span class="page-title" id="scriptPageTitle">💬 话术管理</span>
+          <div style="flex:1"></div>
+          <button class="btn btn-secondary btn-sm" id="btnToggleImport">📥 导入</button>
+          <button class="btn btn-primary btn-sm" id="btnAIGenScript" onclick="window.openAIGenModal()">✨ AI 生成</button>
+          <button class="btn btn-ghost btn-sm" id="btnApplyGroup" style="display:none;color:rgba(34,197,94,0.5);">应用到账号</button>
+        </div>
+
+        <div class="detail-area" style="overflow-y:auto;" id="scriptDetailArea">
+          <!-- 导入区 -->
+          <div id="importArea" style="display:none;">
+            <div class="ai-section" style="margin-bottom:12px;">
+              <div class="ai-label">📥 批量导入话术</div>
+              <div class="ai-row">
+                <input class="ai-input" id="importScriptName" list="scriptNamesList" placeholder="词集名称..." />
+                <datalist id="scriptNamesList"></datalist>
+              </div>
+              <div style="display:flex;gap:8px;flex-direction:column;">
+                <textarea id="importWordsText" class="ai-input" style="min-height:100px;resize:vertical;font-size:11px;line-height:1.6;" placeholder="每行一条话术，粘贴后点击导入..."></textarea>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button class="btn btn-primary btn-sm" id="btnImportScripts">导入</button>
+                  <button class="btn btn-ghost btn-sm" id="btnRefreshScripts">刷新列表</button>
+                  <span id="importStatus" style="font-size:10px;color:rgba(161,161,170,0.2);"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 话术列表容器 -->
+          <div id="scriptWordsContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== 页面 1：账号管理（占位）====== -->
+    <div class="page" id="page-1">
+      <div class="left-panel">
+        <div class="panel-header"><span class="panel-title">分组</span><span class="panel-count">3 组</span></div>
+        <div class="scroll-list">
+          <div class="script-row active"><div class="script-icon">📋</div><div class="script-info"><div class="script-name">全部账号</div><div class="script-meta">10 个账号</div></div></div>
+          <div class="script-row"><div class="script-icon">🔥</div><div class="script-info"><div class="script-name">主推直播间</div><div class="script-meta">4 个账号</div></div></div>
+          <div class="script-row"><div class="script-icon">🔄</div><div class="script-info"><div class="script-name">备用</div><div class="script-meta">6 个账号</div></div></div>
+        </div>
+      </div>
+      <div class="main-content" style="align-items:center;justify-content:center;">
+        <div style="text-align:center;">
+          <div style="font-size:32px;color:rgba(161,161,170,0.08);margin-bottom:8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="48" height="48"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197"/></svg>
+          </div>
+          <div style="font-size:12px;color:rgba(161,161,170,0.12);">账号分组 · 建设中</div>
+          <div style="font-size:10px;color:rgba(161,161,170,0.08);margin-top:8px;">可将账号拖入不同分组，批量管理</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== 页面 3：设置 ====== -->
+    <div class="page" id="page-3">
+      <div class="main-content" style="overflow-y:auto;">
+        <div class="detail-area" style="max-width:520px;margin:0 auto;">
+          <div style="font-size:12px;font-weight:600;color:rgba(161,161,170,0.3);margin-bottom:16px;">设置</div>
+
+          <div class="ai-section" style="margin-bottom:12px;">
+            <div class="ai-label">⚙️ 基本配置</div>
+            <div class="ai-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">最大词条长度</span>
+                <span style="font-size:11px;color:rgba(161,161,170,0.15);">25 字</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">后端端口</span>
+                <span style="font-size:11px;color:rgba(161,161,170,0.15);">3456</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">比特浏览器 API</span>
+                <span style="font-size:11px;color:rgba(161,161,170,0.15);">localhost:54345</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-section">
+            <div class="ai-label">🤖 AI 配置</div>
+            <div class="ai-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">DeepSeek</span>
+                <span style="font-size:11px;color:rgba(34,197,94,0.3);" id="aiStatus">● 已连接</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-section" style="margin-top:12px;">
+            <div class="ai-label">📊 账号信息</div>
+            <div class="ai-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">总账号数</span>
+                <span style="font-size:11px;color:rgba(161,161,170,0.15);">10 个 (zh1~zh10)</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">浏览器检测间隔</span>
+                <span style="font-size:11px;color:rgba(161,161,170,0.15);">30 分钟</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:rgba(161,161,170,0.3);">定时随机范围</span>
+                <span style="font-size:11px;color:rgba(161,161,170,0.15);">选 3s → 实际 3~8s</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-section" style="margin-top:12px;">
+            <div class="ai-label">📖 使用说明</div>
+            <div class="ai-row" style="flex-direction:column;align-items:stretch;gap:6px;font-size:10px;color:rgba(161,161,170,0.2);line-height:1.7;">
+              <div>1. 左侧选择账号 → 输入直播间ID → 点「进场」</div>
+              <div>2. 浏览器打开后扫码登录抖音</div>
+              <div>3. 选择词集和定时 → 点击「发送」开始</div>
+              <div>4. 支持分组管理，一键分配词集到多个账号</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- AI 生成模态框 -->
+<div id="aiGenModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#0c0c12;border:1px solid rgba(34,34,46,0.4);border-radius:12px;padding:24px;width:420px;max-width:90vw;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:#e4e4e7;">
+      <span style="font-size:20px;">🧠</span> AI 生成词集
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;color:rgba(161,161,170,0.3);display:block;margin-bottom:4px;">词集名称</label>
+      <input class="live-input-compact" id="aiGenName" placeholder="例如: 夸主播好看" autocomplete="off" style="width:100%;padding:8px 12px;font-size:12px;" />
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;color:rgba(161,161,170,0.3);display:block;margin-bottom:4px;">生成风格</label>
+      <select id="aiGenStyle" style="width:100%;padding:8px 12px;font-size:12px;background:rgba(0,0,0,0.15);border:1px solid rgba(34,34,46,0.2);border-radius:6px;color:#e4e4e7;outline:none;font-family:inherit;">
+        <option value="活泼">🎉 活泼可爱</option>
+        <option value="真诚">💝 真诚走心</option>
+        <option value="幽默">😄 幽默搞笑</option>
+        <option value="霸气">🔥 霸气带感</option>
+        <option value="温柔">🌸 温柔治愈</option>
+        <option value="专业">💼 专业点评</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:11px;color:rgba(161,161,170,0.3);display:block;margin-bottom:4px;">生成数量</label>
+      <select id="aiGenCount" style="width:100%;padding:8px 12px;font-size:12px;background:rgba(0,0,0,0.15);border:1px solid rgba(34,34,46,0.2);border-radius:6px;color:#e4e4e7;outline:none;font-family:inherit;">
+        <option value="10">10 条</option>
+        <option value="20" selected>20 条</option>
+        <option value="30">30 条</option>
+        <option value="50">50 条</option>
+        <option value="100">100 条</option>
+        <option value="200">200 条</option>
+        <option value="400">400 条</option>
+      </select>
+    </div>
+    <div id="aiGenProgress" style="display:none;margin-bottom:12px;padding:8px 12px;background:rgba(254,44,85,0.04);border-radius:6px;font-size:11px;color:rgba(161,161,170,0.3);"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-secondary" id="aiGenCancel" onclick="document.getElementById('aiGenModal').style.display='none'">取消</button>
+      <button class="btn btn-primary" id="aiGenConfirm" onclick="window.aiGenerate()">🚀 开始生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 隐藏的旧 DOM（app.js 数据绑定用）====== -->
+<div id="hiddenBacking" style="display:none;">
+  <div id="logBox"></div>
+  <div id="liveHistory"></div>
+  <div id="historyTags"></div>
+  <div id="scriptBody">
+    <div class="scripts-add">
+      <input id="newScriptName" class="room-input" placeholder="词集名称" />
+    </div>
+  </div>
+  <div id="scriptToggle"></div>
+  <div id="scriptToggleIcon"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/scripts.js"></script>
+</body>
+</html>

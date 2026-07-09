@@ -1,0 +1,63 @@
+{
+  "name": "yiyi-helper",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "一一助手 — 抖音多账号直播间评论工具",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "bash start.sh",
+    "server": "node server/server.mjs",
+    "electron": "electron electron/main.js",
+    "dev": "electron electron/main.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "lint": "eslint public/js server --max-warnings 15",
+    "lint:fix": "eslint public/js server --fix"
+  },
+  "build": {
+    "appId": "com.seagull.yiyi-helper",
+    "productName": "一一助手",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "public/**/*",
+      "config/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "config/",
+        "to": "config/",
+        "filter": ["**/*"]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/playwright/**"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "zip", "arch": ["arm64"] }
+      ]
+    }
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "electron": "^42.5.1",
+    "electron-builder": "^26.15.3",
+    "eslint": "^8.52.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.4.1"
+  }
+}

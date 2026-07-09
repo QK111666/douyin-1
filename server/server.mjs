@@ -8,54 +8,14 @@ import http from 'http';
 import { spawn } from 'child_process';
 import { existsSync, readFileSync, mkdirSync, writeFileSync, createReadStream } from 'fs';
 import { extname } from 'path';
-import { handleFirst } from './routes/first.js';
-import { handleSend } from './routes/send.js';
+import { pool } from './browser-pool.js';
+import {
+  PORT, BIT_API, BIT_KEY, LX_USERNAME, LX_PASSWORD,
+  DEEPSEEK_KEY, DEEPSEEK_API, AI_ENABLED,
+  PROFILES, NODE_PATH, BROWSERS_PATH
+} from './config.js';
 
-const PORT = 3456;
-const BIT_API = 'http://localhost:54345';
-const BIT_KEY = process.env.BIT_KEY || '';
-if (!BIT_KEY) { console.error('❌ 需要设置环境变量 BIT_KEY'); process.exit(1); }
-
-// 登录鉴权配置
-const LX_USERNAME = process.env.LX_USERNAME || 'admin';
-const LX_PASSWORD = process.env.LX_PASSWORD || (() => {
-  try { return readFileSync('/tmp/lx_password.txt', 'utf8').trim(); } catch { return 'admin'; }
-})();
-
-// DeepSeek AI 配置
-const DEEPSEEK_KEY = (() => {
-  try { return readFileSync('/tmp/deepseek_key.txt', 'utf8').trim(); }
-  catch { return process.env.DEEPSEEK_KEY || ''; }
-})();
-const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const AI_ENABLED = !!DEEPSEEK_KEY;
 const PROJECT_DIR = process.cwd();
-
-let NODE_PATH = '';
-if (existsSync(PROJECT_DIR + '/node_modules')) NODE_PATH = PROJECT_DIR + '/node_modules';
-else if (existsSync(PROJECT_DIR + '/../node_modules')) NODE_PATH = PROJECT_DIR + '/../node_modules';
-else NODE_PATH = '/Users/mac/Desktop/lx/node_modules';
-
-let BROWSERS_PATH = PROJECT_DIR + '/../browsers';
-if (!existsSync(BROWSERS_PATH)) {
-  const altPaths = [PROJECT_DIR + '/browsers', PROJECT_DIR + '/../lx/browsers'];
-  for (const p of altPaths) {
-    if (existsSync(p)) { BROWSERS_PATH = p; break; }
-  }
-}
-
-const PROFILES = {
-  zh1: '181a2fc64f47429d817e647569f72c2d',
-  zh2: '1e102d85738a473186df65556b103ca2',
-  zh3: 'e2d0b41016a44d8f99f4b2ada455b703',
-  zh4: '5bcfba45002240e0b9b0e72026e71fa2',
-  zh5: 'b5e1aa36d1b3472ba37590c53b551e10',
-  zh6: '5da62ece312941b2870c28bb7c223366',
-  zh7: '495196ecf5ab439993a12860c9a353d1',
-  zh8: '85c9214c164645be9eac70bdd8686905',
-  zh9: '76ceabe7719440228ab37e049610d292',
-  zh10: '8e8c34beebbb40d191c750fb6b1aba93',
-};
 
 let loginStatuses = {};
 
@@ -186,13 +146,28 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // POST /api/first — 启动浏览器
+    // POST /api/first — 启动浏览器（持久CDP连接）
     if (path === '/api/first') {
       let body = '';
       req.on('data', chunk => body += chunk);
       req.on('end', async () => {
-        const data = JSON.parse(body || '{}');
-        await handleFirst(req, res, data);
+        try {
+          const data = JSON.parse(body || '{}');
+          const { liveId = '', account = '' } = data;
+          const uid = PROFILES[account];
+          if (!liveId || !uid) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, errorCode: 'INVALID_PARAMS', error: '缺少参数', data: null }));
+            return;
+          }
+          await pool.connect(account, uid, bitApi, liveId);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, data: { message: '启动成功' } }));
+        } catch (e) {
+          const code = e.message.includes('超时') ? 'BROWSER_TIMEOUT' : 'BROWSER_START_FAILED';
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, errorCode: code, error: e.message, data: null }));
+        }
       });
       return;
     }
@@ -202,8 +177,21 @@ const server = http.createServer(async (req, res) => {
       let body = '';
       req.on('data', chunk => body += chunk);
       req.on('end', async () => {
-        const data = JSON.parse(body || '{}');
-        await handleSend(req, res, data);
+        try {
+          const data = JSON.parse(body || '{}');
+          const { msg = '你好', account = '' } = data;
+          if (!account) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, errorCode: 'INVALID_PARAMS', error: '缺少账号参数', data: null }));
+            return;
+          }
+          const result = await pool.send(account, msg);
+          res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result.success ? { success: true, data: { message: result.message } } : { success: false, errorCode: result.errorCode, error: result.error, data: null }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, errorCode: 'UNKNOWN_ERROR', error: e.message, data: null }));
+        }
       });
       return;
     }
@@ -218,21 +206,9 @@ const server = http.createServer(async (req, res) => {
         const account = data.account || '';
 
         if (cmd === 'check-browser') {
-          const uid = PROFILES[account];
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          if (uid) {
-            try {
-              // 用 browser/list 查询（不会启动新浏览器）
-              const r = await bitApi('/browser/list', { page: 1, pageSize: 100 });
-              const list = r.data?.list || [];
-              const running = list.some(item => item.id === uid);
-              res.end(JSON.stringify({ running }));
-            } catch (e) {
-              res.end(JSON.stringify({ running: false, error: e.message }));
-            }
-          } else {
-            res.end(JSON.stringify({ running: false, error: 'unknown account' }));
-          }
+          const running = await pool.checkStatus(account);
+          res.end(JSON.stringify({ running }));
           return;
         }
 
@@ -251,10 +227,16 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (cmd === 'show-browser') {
-          // 恢复浏览器窗口到前台
-          const result = await runScript('ads-tool.mjs', ['--show', '--account', account]);
+          const ok = await pool.showWindow(account);
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ code: result.code, output: result.output.substring(0, 200) }));
+          res.end(JSON.stringify({ code: ok ? 0 : -1, output: ok ? '窗口已显示' : '显示失败' }));
+          return;
+        }
+
+        if (cmd === 'hide-browser') {
+          const ok = await pool.hideWindow(account);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ code: ok ? 0 : -1, output: ok ? '窗口已隐藏' : '隐藏失败' }));
           return;
         }
 
@@ -263,23 +245,9 @@ const server = http.createServer(async (req, res) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           if (uid) {
             try {
-              // 1. 先尝试 CDP 连接（触发浏览器 flush cookie 到磁盘）
-              try {
-                const openRes = await bitApi('/browser/open', { id: uid });
-                if (openRes.success && openRes.data?.ws) {
-                  const wsData = openRes.data.ws;
-                  const wsUrl = typeof wsData === 'string' ? wsData : (wsData?.puppeteer || wsData?.selenium || null);
-                  if (!wsUrl) throw new Error('无法获取 WS 地址');
-                  const { chromium } = await import('playwright');
-                  const browser = await chromium.connectOverCDP(wsUrl);
-                  // 给浏览器 2 秒写 cookie/session
-                  await new Promise(r => setTimeout(r, 2000));
-                  await browser.close().catch(() => {});
-                }
-              } catch(e) {
-                // CDP 优雅关闭失败，继续走 API 强关
-              }
-              // 2. 最后 API 强关
+              // 1. 从连接池断连（CDP优雅关闭+flush cookie）
+              await pool.disconnect(account);
+              // 2. API 强关
               await bitApi('/browser/close', { id: uid });
               res.end(JSON.stringify({ code: 0 }));
             } catch (e) {
@@ -317,7 +285,8 @@ const server = http.createServer(async (req, res) => {
         try {
           const dir = '/tmp/lxcc_scripts';
           if (!existsSync(dir)) mkdirSync(dir);
-          writeFileSync(dir + '/' + (data.name || 'default') + '.json', JSON.stringify(data.words || []));
+          const safeName = (data.name || 'default').replace(/[^a-zA-Z0-9_\u4e00-\u9fff]/g, '_').substring(0, 50) || 'default';
+          writeFileSync(dir + '/' + safeName + '.json', JSON.stringify(data.words || []));
         } catch {}
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
